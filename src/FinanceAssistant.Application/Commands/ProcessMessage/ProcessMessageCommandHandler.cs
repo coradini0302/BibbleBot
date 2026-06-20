@@ -22,6 +22,22 @@ public class ProcessMessageCommandHandler : IRequestHandler<ProcessMessageComman
         _extractionService = extractionService;
     }
 
+    private static string GetCategoryEmoji(string category) => category.ToLowerInvariant() switch
+    {
+        "salário" or "salario"     => "💼",
+        "freelance"                => "💻",
+        "investimentos"            => "📈",
+        "mercado"                  => "🛒",
+        "alimentação" or "alimentacao" => "🍔",
+        "combustível" or "combustivel" => "⛽",
+        "lazer"                    => "🎉",
+        "pets"                     => "🐾",
+        "casa"                     => "🏠",
+        "saúde" or "saude"         => "🏥",
+        "veículo" or "veiculo"     => "🚗",
+        _                          => "📦",
+    };
+
     public async Task<string> Handle(ProcessMessageCommand request, CancellationToken cancellationToken)
     {
         string categoryName;
@@ -61,9 +77,13 @@ public class ProcessMessageCommandHandler : IRequestHandler<ProcessMessageComman
             Type = type
         };
 
-        await _mediator.Send(command, cancellationToken);
+        var transactionId = await _mediator.Send(command, cancellationToken);
 
-        var typeLabel = type == TransactionType.Expense ? "Despesa" : "Receita";
-        return $"{typeLabel} registrada!\n\nCategoria: {categoryName}\nDescricao: {description}\nValor: R$ {amount:N2}";
+        var typeEmoji = type == TransactionType.Expense ? "✅ Gasto Registrado!" : "✅ Receita Registrada!";
+        var categoryEmoji = GetCategoryEmoji(categoryName);
+        var shortId = transactionId.ToString("N")[..6];
+        var date = DateTime.Now.ToString("dd/MM/yyyy");
+
+        return $"{typeEmoji}\n\n{categoryEmoji} {description} ({categoryName})\n💸 R${amount:N2}\n📅 {date} - #{shortId}";
     }
 }
