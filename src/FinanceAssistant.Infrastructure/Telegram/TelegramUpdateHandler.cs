@@ -18,15 +18,18 @@ public class TelegramUpdateHandler
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IMediator _mediator;
+    private readonly IAudioTranscriptionService _transcriptionService;
     private readonly ILogger<TelegramUpdateHandler> _logger;
 
     public TelegramUpdateHandler(
         ITelegramBotClient botClient,
         IMediator mediator,
+        IAudioTranscriptionService transcriptionService,
         ILogger<TelegramUpdateHandler> logger)
     {
         _botClient = botClient;
         _mediator = mediator;
+        _transcriptionService = transcriptionService;
         _logger = logger;
     }
 
@@ -47,6 +50,11 @@ public class TelegramUpdateHandler
                 _logger.LogInformation("Foto de {UserId}", telegramUserId);
                 response = await HandlePhotoAsync(photos, telegramUserId, userName, cancellationToken);
             }
+            else if (message.Voice is { } voice)
+            {
+                _logger.LogInformation("Audio de {UserId}", telegramUserId);
+                response = await HandleVoiceAsync(voice, telegramUserId, userName, cancellationToken);
+            }
             else if (message.Text is { } text)
             {
                 _logger.LogInformation("Mensagem de {UserId}: {Text}", telegramUserId, text);
@@ -63,6 +71,21 @@ public class TelegramUpdateHandler
             _logger.LogError(ex, "Erro ao processar update {UpdateId}", update.Id);
             await _botClient.SendMessage(chatId, "Ocorreu um erro. Tente novamente.", cancellationToken: cancellationToken);
         }
+    }
+
+    private async Task<string> HandleVoiceAsync(Voice voice, long telegramUserId, string userName, CancellationToken cancellationToken)
+    {
+        var file = await _botClient.GetFile(voice.FileId, cancellationToken);
+        using var stream = new MemoryStream();
+        await _botClient.DownloadFile(file.FilePath!, stream, cancellationToken);
+
+        var transcription = await _transcriptionService.TranscribeAsync(stream.ToArray(), cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(transcription))
+            return "Nao consegui entender o audio. Tente falar mais claramente ou envie uma mensagem de texto.";
+
+        _logger.LogInformation("Transcricao de {UserId}: {Text}", telegramUserId, transcription);
+        return await HandleTextAsync(transcription, telegramUserId, userName, cancellationToken);
     }
 
     private async Task<string> HandlePhotoAsync(PhotoSize[] photos, long telegramUserId, string userName, CancellationToken cancellationToken)

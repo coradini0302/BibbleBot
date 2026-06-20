@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using OpenAI;
 using Telegram.Bot;
 
@@ -53,11 +52,18 @@ public static class DependencyInjection
 
         var model = configuration["OpenAI:Model"] ?? "gpt-4o-mini";
 
+        var openAIClient = new OpenAIClient(apiKey);
+
         services.AddScoped<ITransactionExtractionService>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<OpenAITransactionExtractionService>>();
-            var chatClient = new OpenAIClient(apiKey).GetChatClient(model);
-            return new OpenAITransactionExtractionService(chatClient, logger);
+            return new OpenAITransactionExtractionService(openAIClient.GetChatClient(model), logger);
+        });
+
+        services.AddScoped<IAudioTranscriptionService>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<OpenAIAudioTranscriptionService>>();
+            return new OpenAIAudioTranscriptionService(openAIClient.GetAudioClient("whisper-1"), logger);
         });
     }
 
