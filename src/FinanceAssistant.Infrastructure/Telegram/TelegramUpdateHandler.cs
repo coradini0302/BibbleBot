@@ -133,6 +133,8 @@ public class TelegramUpdateHandler
 
             "/configurar" => await HandleConfigureCommandAsync(text, telegramUserId, cancellationToken),
 
+            "/start" => WelcomeText(),
+
             "/ajuda" => HelpText(),
 
             _ => "Comando nao reconhecido. Use /ajuda para ver os comandos disponiveis."
@@ -243,6 +245,26 @@ public class TelegramUpdateHandler
         }
         return sb.ToString().TrimEnd();
     }
+
+    private static string WelcomeText() =>
+        "Ola! Eu sou o BibbleBot, seu assistente financeiro pessoal 👋\n\n" +
+        "Voce pode registrar transacoes de 3 formas:\n\n" +
+        "💬 Texto\n" +
+        "  \"gastei 50 no mercado\"\n" +
+        "  \"recebi 5000 de salario\"\n" +
+        "  \"almoco 35\"\n\n" +
+        "🎤 Audio\n" +
+        "  Mande um audio falando a transacao, ex:\n" +
+        "  \"cem reais de gasolina\"\n\n" +
+        "🧾 Foto de comprovante\n" +
+        "  Tire uma foto da nota fiscal ou comprovante\n" +
+        "  e eu extraio os dados automaticamente\n\n" +
+        "📊 Consultas:\n" +
+        "/resumo   - Saldo do mes\n" +
+        "/gastos   - Gastos por categoria\n" +
+        "/receitas - Receitas por categoria\n" +
+        "/ultimas  - Ultimas 10 transacoes\n\n" +
+        "Use /ajuda para ver todos os comandos.";
 
     private static string HelpText() =>
         "Comandos disponiveis:\n\n" +
