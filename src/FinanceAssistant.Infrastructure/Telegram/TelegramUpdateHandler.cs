@@ -1,4 +1,5 @@
 using System.Text;
+using FinanceAssistant.Application.Commands.ProcessImage;
 using FinanceAssistant.Application.Commands.ProcessMessage;
 using FinanceAssistant.Application.DTOs;
 using FinanceAssistant.Application.Queries.GetLastTransactions;
@@ -32,19 +33,28 @@ public class TelegramUpdateHandler
     public async Task HandleAsync(Update update, CancellationToken cancellationToken)
     {
         if (update.Message is not { } message) return;
-        if (message.Text is not { } text) return;
 
         var chatId = message.Chat.Id;
         var telegramUserId = message.From!.Id;
         var userName = message.From.FirstName ?? "Usuário";
 
-        _logger.LogInformation("Mensagem de {UserId}: {Text}", telegramUserId, text);
-
         try
         {
-            var response = text.StartsWith('/')
-                ? await HandleCommandAsync(text, telegramUserId, cancellationToken)
-                : await HandleTextAsync(text, telegramUserId, userName, cancellationToken);
+            string response;
+
+            if (message.Photo is { } photos)
+            {
+                _logger.LogInformation("Foto de {UserId}", telegramUserId);
+                response = await HandlePhotoAsync(photos, telegramUserId, userName, cancellationToken);
+            }
+            else if (message.Text is { } text)
+            {
+                _logger.LogInformation("Mensagem de {UserId}: {Text}", telegramUserId, text);
+                response = text.StartsWith('/')
+                    ? await HandleCommandAsync(text, telegramUserId, cancellationToken)
+                    : await HandleTextAsync(text, telegramUserId, userName, cancellationToken);
+            }
+            else return;
 
             await _botClient.SendMessage(chatId, response, cancellationToken: cancellationToken);
         }
@@ -53,6 +63,19 @@ public class TelegramUpdateHandler
             _logger.LogError(ex, "Erro ao processar update {UpdateId}", update.Id);
             await _botClient.SendMessage(chatId, "Ocorreu um erro. Tente novamente.", cancellationToken: cancellationToken);
         }
+    }
+
+    private async Task<string> HandlePhotoAsync(PhotoSize[] photos, long telegramUserId, string userName, CancellationToken cancellationToken)
+    {
+        var photo = photos.Last();
+        var file = await _botClient.GetFile(photo.FileId, cancellationToken);
+
+        using var stream = new MemoryStream();
+        await _botClient.DownloadFile(file.FilePath!, stream, cancellationToken);
+
+        return await _mediator.Send(
+            new ProcessImageCommand(telegramUserId, userName, stream.ToArray()),
+            cancellationToken);
     }
 
     private async Task<string> HandleCommandAsync(string text, long telegramUserId, CancellationToken cancellationToken)

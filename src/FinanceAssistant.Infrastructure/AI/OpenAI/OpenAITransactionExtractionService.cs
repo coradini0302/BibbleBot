@@ -98,6 +98,37 @@ public class OpenAITransactionExtractionService : ITransactionExtractionService
         }
     }
 
+    public async Task<TransactionExtractionResult> ExtractFromImageAsync(byte[] imageBytes, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var imageData = BinaryData.FromBytes(imageBytes);
+            var completion = await _chatClient.CompleteChatAsync(
+                [
+                    new SystemChatMessage(SystemPrompt),
+                    new UserChatMessage(
+                        ChatMessageContentPart.CreateTextPart("Analise este comprovante e extraia os dados da transação financeira."),
+                        ChatMessageContentPart.CreateImagePart(imageData, "image/jpeg")
+                    )
+                ],
+                new ChatCompletionOptions
+                {
+                    ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+                },
+                cancellationToken
+            );
+
+            var json = completion.Value.Content[0].Text;
+            _logger.LogDebug("OpenAI image response: {Json}", json);
+            return ParseResponse(json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao processar imagem com OpenAI");
+            return Failure(ex.Message);
+        }
+    }
+
     private static TransactionExtractionResult Failure(string error)
         => new(false, TransactionType.Expense, "Outros", string.Empty, 0, error);
 
