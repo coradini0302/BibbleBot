@@ -45,10 +45,13 @@ public static class DependencyInjection
 
     private static void AddOpenAI(IServiceCollection services, IConfiguration configuration)
     {
-        var apiKey = configuration["OpenAI:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("OPENAI__APIKEY")
-            ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-            ?? throw new InvalidOperationException("OpenAI:ApiKey nao configurado.");
+        var apiKey = configuration["OpenAI:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey))
+            apiKey = Environment.GetEnvironmentVariable("OPENAI__APIKEY");
+        if (string.IsNullOrEmpty(apiKey))
+            apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (string.IsNullOrEmpty(apiKey))
+            throw new InvalidOperationException("OpenAI:ApiKey nao configurado.");
 
         var model = configuration["OpenAI:Model"] ?? "gpt-4o-mini";
 
