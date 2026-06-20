@@ -251,11 +251,13 @@ public class TelegramUpdateHandler
         "Voce pode registrar transacoes de 3 formas:\n\n" +
         "💬 Texto\n" +
         "  \"gastei 50 no mercado\"\n" +
+        "  \"almoco 35\"\n" +
         "  \"recebi 5000 de salario\"\n" +
-        "  \"almoco 35\"\n\n" +
+        "  \"fiz freela e ganhei 800 reais\"\n\n" +
         "🎤 Audio\n" +
         "  Mande um audio falando a transacao, ex:\n" +
-        "  \"cem reais de gasolina\"\n\n" +
+        "  \"cem reais de gasolina\"\n" +
+        "  \"recebi trezentos de freela\"\n\n" +
         "🧾 Foto de comprovante\n" +
         "  Tire uma foto da nota fiscal ou comprovante\n" +
         "  e eu extraio os dados automaticamente\n\n" +
