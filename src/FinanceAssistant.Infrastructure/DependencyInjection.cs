@@ -45,13 +45,17 @@ public static class DependencyInjection
 
     private static void AddOpenAI(IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<OpenAIOptions>(configuration.GetSection("OpenAI"));
+        var apiKey = configuration["OpenAI:ApiKey"]
+            ?? Environment.GetEnvironmentVariable("OPENAI__APIKEY")
+            ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+            ?? throw new InvalidOperationException("OpenAI:ApiKey nao configurado.");
+
+        var model = configuration["OpenAI:Model"] ?? "gpt-4o-mini";
 
         services.AddScoped<ITransactionExtractionService>(sp =>
         {
-            var options = sp.GetRequiredService<IOptions<OpenAIOptions>>().Value;
             var logger = sp.GetRequiredService<ILogger<OpenAITransactionExtractionService>>();
-            var chatClient = new OpenAIClient(options.ApiKey).GetChatClient(options.Model);
+            var chatClient = new OpenAIClient(apiKey).GetChatClient(model);
             return new OpenAITransactionExtractionService(chatClient, logger);
         });
     }
