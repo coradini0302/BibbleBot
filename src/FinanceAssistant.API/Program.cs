@@ -19,7 +19,8 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 // Registra webhook do Telegram se a URL estiver configurada
-var webhookUrl = app.Configuration["Telegram:WebhookUrl"];
+var webhookUrl = app.Configuration["Telegram:WebhookUrl"]
+    ?? Environment.GetEnvironmentVariable("TELEGRAM_WEBHOOK");
 if (!string.IsNullOrWhiteSpace(webhookUrl))
 {
     var botClient = app.Services.GetRequiredService<ITelegramBotClient>();

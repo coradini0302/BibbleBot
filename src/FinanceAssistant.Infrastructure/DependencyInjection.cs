@@ -47,11 +47,9 @@ public static class DependencyInjection
     {
         var apiKey = configuration["OpenAI:ApiKey"];
         if (string.IsNullOrEmpty(apiKey))
-            apiKey = Environment.GetEnvironmentVariable("OPENAI__APIKEY");
+            apiKey = Environment.GetEnvironmentVariable("OPENAI_KEY");
         if (string.IsNullOrEmpty(apiKey))
-            apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException("OpenAI:ApiKey nao configurado.");
+            throw new InvalidOperationException("OPENAI_KEY nao configurado.");
 
         var model = configuration["OpenAI:Model"] ?? "gpt-4o-mini";
 
@@ -65,13 +63,13 @@ public static class DependencyInjection
 
     private static void AddTelegram(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton<ITelegramBotClient>(_ =>
-        {
-            var token = configuration["Telegram:BotToken"]
-                ?? throw new InvalidOperationException("Telegram:BotToken nao configurado.");
-            return new TelegramBotClient(token);
-        });
+        var token = configuration["Telegram:BotToken"];
+        if (string.IsNullOrEmpty(token))
+            token = Environment.GetEnvironmentVariable("TELEGRAM_TOKEN");
+        if (string.IsNullOrEmpty(token))
+            throw new InvalidOperationException("TELEGRAM_TOKEN nao configurado.");
 
+        services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(token));
         services.AddScoped<TelegramUpdateHandler>();
     }
 }
