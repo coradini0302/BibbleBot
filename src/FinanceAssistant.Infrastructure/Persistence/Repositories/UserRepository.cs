@@ -19,4 +19,9 @@ public class UserRepository : IUserRepository
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
         => await _context.Users.AddAsync(user, cancellationToken);
+
+    public async Task<IReadOnlyList<User>> GetUsersWithReportDayAsync(int day, CancellationToken cancellationToken = default)
+        => await _context.Users
+            .Where(u => u.ReportDay == day)
+            .ToListAsync(cancellationToken);
 }

@@ -1,6 +1,9 @@
 using System.Text;
+using FinanceAssistant.Application.Abstractions;
+using FinanceAssistant.Application.Commands.GenerateMonthlyReport;
 using FinanceAssistant.Application.Commands.ProcessImage;
 using FinanceAssistant.Application.Commands.ProcessMessage;
+using FinanceAssistant.Application.Commands.SetReportConfig;
 using FinanceAssistant.Application.DTOs;
 using FinanceAssistant.Application.Queries.GetLastTransactions;
 using FinanceAssistant.Application.Queries.GetMonthlyExpenses;
@@ -58,6 +61,14 @@ public class TelegramUpdateHandler
             else if (message.Text is { } text)
             {
                 _logger.LogInformation("Mensagem de {UserId}: {Text}", telegramUserId, text);
+
+                // /relatorio envia documento — tratado separadamente
+                if (text.StartsWith("/relatorio", StringComparison.OrdinalIgnoreCase))
+                {
+                    await HandleReportCommandAsync(text, chatId, telegramUserId, cancellationToken);
+                    return;
+                }
+
                 response = text.StartsWith('/')
                     ? await HandleCommandAsync(text, telegramUserId, cancellationToken)
                     : await HandleTextAsync(text, telegramUserId, userName, cancellationToken);
@@ -120,10 +131,61 @@ public class TelegramUpdateHandler
             "/ultimas" => FormatLastTransactions(
                 await _mediator.Send(new GetLastTransactionsQuery(telegramUserId), cancellationToken)),
 
+            "/configurar" => await HandleConfigureCommandAsync(text, telegramUserId, cancellationToken),
+
             "/ajuda" => HelpText(),
 
             _ => "Comando nao reconhecido. Use /ajuda para ver os comandos disponiveis."
         };
+    }
+
+    private async Task HandleReportCommandAsync(string text, long chatId, long telegramUserId, CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var isPrevious = parts.Length > 1 && parts[1].Equals("passado", StringComparison.OrdinalIgnoreCase);
+
+        var target = isPrevious ? DateTime.UtcNow.AddMonths(-1) : DateTime.UtcNow;
+
+        var report = await _mediator.Send(
+            new GenerateMonthlyReportCommand(telegramUserId, target.Year, target.Month),
+            cancellationToken);
+
+        if (report is null)
+        {
+            await _botClient.SendMessage(chatId,
+                "Nenhuma transacao encontrada para o periodo solicitado.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        using var stream = new MemoryStream(report.Content);
+        var monthLabel = target.ToString("MMMM/yyyy");
+
+        await _botClient.SendDocument(
+            chatId: new ChatId(chatId),
+            document: InputFile.FromStream(stream, report.FileName),
+            caption: $"Relatorio de {monthLabel}",
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<string> HandleConfigureCommandAsync(string text, long telegramUserId, CancellationToken cancellationToken)
+    {
+        // /configurar dia 5 excel
+        // /configurar dia 5 csv
+        // /configurar desativar
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length >= 2 && parts[1].Equals("desativar", StringComparison.OrdinalIgnoreCase))
+            return await _mediator.Send(new SetReportConfigCommand(telegramUserId, null, ReportFormat.Excel), cancellationToken);
+
+        if (parts.Length < 4 || !parts[1].Equals("dia", StringComparison.OrdinalIgnoreCase) || !int.TryParse(parts[2], out var day))
+            return "Uso:\n/configurar dia [1-28] [excel|csv]\n/configurar desativar\n\nExemplo: /configurar dia 5 excel";
+
+        var format = parts[3].Equals("csv", StringComparison.OrdinalIgnoreCase)
+            ? ReportFormat.Csv
+            : ReportFormat.Excel;
+
+        return await _mediator.Send(new SetReportConfigCommand(telegramUserId, day, format), cancellationToken);
     }
 
     private async Task<string> HandleTextAsync(string text, long telegramUserId, string userName, CancellationToken cancellationToken)
@@ -184,10 +246,13 @@ public class TelegramUpdateHandler
 
     private static string HelpText() =>
         "Comandos disponiveis:\n\n" +
-        "/gastos   - Gastos do mes por categoria\n" +
-        "/receitas - Receitas do mes por categoria\n" +
-        "/resumo   - Saldo do mes\n" +
-        "/ultimas  - Ultimas 10 transacoes\n\n" +
+        "/gastos            - Gastos do mes por categoria\n" +
+        "/receitas          - Receitas do mes por categoria\n" +
+        "/resumo            - Saldo do mes\n" +
+        "/ultimas           - Ultimas 10 transacoes\n" +
+        "/relatorio         - Relatorio do mes atual\n" +
+        "/relatorio passado - Relatorio do mes anterior\n" +
+        "/configurar        - Configura relatorio automatico\n\n" +
         "Para registrar uma transacao, envie uma mensagem como:\n" +
         "  mercado 150\n" +
         "  gastei 80 no almoco\n" +

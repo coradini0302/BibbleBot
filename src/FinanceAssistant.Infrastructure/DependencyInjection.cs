@@ -1,8 +1,11 @@
 using FinanceAssistant.Application.Abstractions;
+using FinanceAssistant.Domain.Enums;
 using FinanceAssistant.Domain.Repositories;
 using FinanceAssistant.Infrastructure.AI.OpenAI;
+using FinanceAssistant.Infrastructure.BackgroundServices;
 using FinanceAssistant.Infrastructure.Persistence;
 using FinanceAssistant.Infrastructure.Persistence.Repositories;
+using FinanceAssistant.Infrastructure.Reports;
 using FinanceAssistant.Infrastructure.Telegram;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +24,7 @@ public static class DependencyInjection
         AddRepositories(services);
         AddOpenAI(services, configuration);
         AddTelegram(services, configuration);
+        AddReports(services);
 
         return services;
     }
@@ -77,5 +81,12 @@ public static class DependencyInjection
 
         services.AddSingleton<ITelegramBotClient>(_ => new TelegramBotClient(token));
         services.AddScoped<TelegramUpdateHandler>();
+    }
+
+    private static void AddReports(IServiceCollection services)
+    {
+        services.AddKeyedScoped<IReportGeneratorService, ExcelReportGeneratorService>(ReportFormat.Excel);
+        services.AddKeyedScoped<IReportGeneratorService, CsvReportGeneratorService>(ReportFormat.Csv);
+        services.AddHostedService<MonthlyReportBackgroundService>();
     }
 }

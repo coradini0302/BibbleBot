@@ -1,4 +1,5 @@
 using FinanceAssistant.Domain.Entities;
+using FinanceAssistant.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,5 +19,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt)
             .IsRequired()
             .HasColumnType("timestamp with time zone");
+
+        builder.Property(u => u.ReportDay);
+
+        builder.Property(u => u.ReportFormat)
+            .IsRequired()
+            .HasDefaultValue(ReportFormat.Excel);
     }
 }
